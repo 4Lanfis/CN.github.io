@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursor Navigator - Geocache Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .glow-red {
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.7), inset 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
+        }
+
+        .glow-gold {
+            box-shadow: 0 0 25px rgba(234, 179, 8, 0.7);
+        }
+
+        .bg-grid {
+            background-size: 32px 32px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        }
+
+        @keyframes borderPulse {
+            0%, 100% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+            50% { border-color: rgba(220, 38, 38, 0.5); box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
+        }
+
+        .deadly-frame {
+            animation: borderPulse 1.2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-full w-full flex flex-col justify-between bg-slate-950 text-slate-100 bg-grid relative antialiased">
+
+    <!-- Header Controls & Title -->
+    <header class="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between z-20 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400">
+                <i class="fa-solid fa-crosshairs text-xl animate-pulse"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="font-orbitron text-lg md:text-xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
+                        CURSOR NAVIGATOR
+                    </h1>
+                    <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-mono">
+                        A GEOCACHE by 4Lanfis
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400">Wandberührung = Tod</p>
+            </div>
+        </div>
+
+        <!-- Level Stats Bar -->
+        <div class="flex items-center space-x-3 font-orbitron text-sm">
+            <div class="bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+                <span class="text-slate-400 text-xs uppercase">LEVEL</span>
+                <span id="level-display" class="text-cyan-400 font-bold text-base">1 / 10</span>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+                <span class="text-slate-400 text-xs uppercase">TODE</span>
+                <span id="deaths-display" class="text-red-400 font-bold text-base">0</span>
+            </div>
+
+            <!-- Music Toggle Button -->
+            <button id="music-btn" class="px-3 py-1.5 bg-cyan-600/30 border border-cyan-500/50 hover:bg-cyan-600/50 text-cyan-300 rounded-lg transition flex items-center space-x-1.5 text-xs font-semibold">
+                <i id="music-icon" class="fa-solid fa-music"></i>
+                <span id="music-text">Musik AN</span>
+            </button>
+
+            <!-- Sound FX Toggle Button -->
+            <button id="sound-btn" class="p-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 rounded-lg transition" title="Soundeffekte umschalten">
+                <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+
+            <button id="restart-btn" class="px-3 py-1.5 bg-red-600/80 hover:bg-red-500 border border-red-400 text-white font-semibold rounded-lg text-xs transition flex items-center space-x-1">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span class="hidden sm:inline">Neustart</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Arena -->
+    <main class="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 relative overflow-hidden">
+        
+        <!-- Status Indicator Banner -->
+        <div id="status-banner" class="mb-3 text-center text-xs font-semibold text-cyan-400 tracking-wide uppercase flex items-center gap-2 bg-slate-900/80 border border-slate-800 px-4 py-1.5 rounded-full shadow-inner">
+            <i id="status-icon" class="fa-solid fa-shield-halved text-amber-400"></i>
+            <span id="status-text">Bereit zum Start • Klicke auf 'Level Starten'</span>
+        </div>
+
+        <!-- Game Arena Layout with Left Sidebar & Canvas -->
+        <div class="flex flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-5xl">
+            
+            <!-- Left Sidebar: Level Selection -->
+            <aside class="bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 sm:p-3 rounded-2xl flex flex-col items-center gap-2 shadow-xl max-h-[75vh] overflow-y-auto min-w-[70px] sm:min-w-[110px]">
+                <div class="text-[11px] font-orbitron font-bold text-slate-400 uppercase tracking-wider text-center flex flex-col items-center">
+                    <i class="fa-solid fa-list-ol text-cyan-400 mb-1 text-sm"></i>
+                    <span>Level</span>
+                </div>
+                <div id="level-buttons-container" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 w-full">
+                    <!-- Dynamically generated level buttons -->
+                </div>
+            </aside>
+
+            <!-- Canvas Container with Outer Deadly Frame Glow -->
+            <div class="relative flex-1 max-w-full max-h-[75vh] aspect-[4/3] rounded-2xl overflow-hidden p-1 bg-red-950/40 border-2 border-red-600 deadly-frame glow-red shadow-2xl">
+                <canvas id="gameCanvas" width="800" height="600" class="w-full h-full block bg-slate-950 rounded-xl cursor-crosshair"></canvas>
+
+                <!-- Message Overlay (Start / Level Finish / Death) -->
+                <div id="overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 transition-all duration-300 z-10">
+                    <div id="overlay-icon" class="text-5xl text-cyan-400 mb-3 animate-bounce">
+                        <i class="fa-solid fa-play"></i>
+                    </div>
+                    <h2 id="overlay-title" class="font-orbitron text-2xl sm:text-3xl font-black text-white mb-2 tracking-wide">
+                        READY FOR TAKE OFF
+                    </h2>
+                    <p id="overlay-subtitle" class="text-slate-300 text-sm max-w-md mb-6 leading-relaxed">
+                        Klicke unten, um das Spielfeld freizuschalten. Bewege anschließend deinen Mauszeiger in die grüne Start-Basis!
+                    </p>
+                    <button id="start-action-btn" class="px-8 py-3.5 bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-orbitron font-extrabold text-white rounded-xl shadow-lg glow-cyan transition transform hover:scale-105 tracking-wider">
+                        LEVEL STARTEN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Controls Instruction Footer -->
+    <footer class="w-full bg-slate-900/80 border-t border-slate-800 py-2.5 px-4 text-center text-xs text-slate-400 flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center gap-3">
+            <span><i class="fa-solid fa-mouse text-cyan-400 mr-1"></i> Präzise Maus-Steuerung</span>
+            <span><i class="fa-solid fa-shield-halved text-red-400 mr-1"></i> Roter Rand = Sofort-Tod</span>
+        </div>
+        <div class="font-mono text-cyan-400/90 font-semibold">
+            A GEOCACHE by 4Lanfis
+        </div>
+        <div>
+            <span class="text-slate-600 font-mono text-[11px]">v2.94</span>
+        </div>
+    </footer>
+
+    <script>
+        class AudioSystem {
+            constructor() {
+                this.ctx = null;
+                this.sfxMuted = false;
+                this.musicMuted = false;
+                this.isPlayingMusic = false;
+                this.musicTimer = null;
+                this.step = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playBeep(freq = 600, type = 'sine', duration = 0.08, vol = 0.2) {
+                if (this.sfxMuted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+
+            playTick() {
+                this.playBeep(850, 'triangle', 0.05, 0.22);
+            }
+
+            playArmSound() {
+                if (this.sfxMuted || !this.ctx) return;
+                const notes = [440, 660, 880, 1320];
+                notes.forEach((f, i) => {
+                    setTimeout(() => this.playBeep(f, 'sine', 0.1, 0.28), i * 60);
+                });
+            }
+
+            playBombSpawn() {
+                this.playBeep(300, 'square', 0.08, 0.12);
+            }
+
+            playBombExplode() {
+                if (this.sfxMuted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.4);
+                } catch(e) {}
+            }
+
+            playDeath() {
+                if (this.sfxMuted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.35);
+                    gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.35);
+                } catch(e) {}
+            }
+
+            playWin() {
+                if (this.sfxMuted || !this.ctx) return;
+                const fanFar = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                fanFar.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        this.playBeep(freq, 'triangle', 0.25, 0.35);
+                    }, idx * 100);
+                });
+            }
+
+            playKey() {
+                this.playBeep(784, 'sine', 0.12, 0.3);
+                setTimeout(() => this.playBeep(1174.66, 'sine', 0.18, 0.35), 70);
+            }
+
+            startMusic() {
+                if (this.isPlayingMusic || this.musicMuted) return;
+                this.init();
+                this.isPlayingMusic = true;
+                this.step = 0;
+
+                this.musicTimer = setInterval(() => {
+                    if (!this.musicMuted && this.ctx) {
+                        this.playMusicStep(this.step);
+                    }
+                    this.step = (this.step + 1) % 32;
+                }, 110);
+            }
+
+            stopMusic() {
+                if (this.musicTimer) {
+                    clearInterval(this.musicTimer);
+                    this.musicTimer = null;
+                }
+                this.isPlayingMusic = false;
+            }
+
+            playMusicStep(step) {
+                const now = this.ctx.currentTime;
+
+                if (step % 8 === 0) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.frequency.setValueAtTime(130, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                }
+
+                if (step % 8 === 4) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(250, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                }
+
+                if (step % 2 === 0) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(3200 + (step % 4 === 0 ? 800 : 0), now);
+                    gain.gain.setValueAtTime(0.02, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.03);
+                }
+
+                const bassNotes = [
+                    110, 110, 220, 110, 130.81, 110, 146.83, 110,
+                    110, 110, 220, 110, 164.81, 146.83, 130.81, 110
+                ];
+                const bassFreq = bassNotes[step % 16];
+                if (bassFreq) {
+                    const osc = this.ctx.createOscillator();
+                    const filter = this.ctx.createBiquadFilter();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(bassFreq, now);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(600, now);
+                    filter.frequency.exponentialRampToValueAtTime(200, now + 0.09);
+
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                }
+
+                const leadNotes = [
+                    440, 523.25, 659.25, 880, 523.25, 659.25, 880, 1046.50,
+                    392, 523.25, 659.25, 783.99, 523.25, 659.25, 783.99, 987.77,
+                    349.23, 440, 523.25, 698.46, 440, 523.25, 698.46, 880,
+                    329.63, 392, 493.88, 659.25, 392, 493.88, 659.25, 783.99
+                ];
+                const leadFreq = leadNotes[step];
+                if (leadFreq && step % 2 === 0) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(leadFreq, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                }
+            }
+        }
+
+        const sounds = new AudioSystem();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const V_WIDTH = 800;
+        const V_HEIGHT = 600;
+        const BORDER_THICKNESS = 18;
+
+        const player = {
+            x: 50,
+            y: 50,
+            radius: 6,
+            state: 'OVERLAY',
+            dwellTime: 0,
+            dwellTarget: 2.0,
+            keysCollected: 0
+        };
+
+        let deaths = 0;
+        let currentLevelIdx = 0;
+        let particles = [];
+        let activeBombs = [];
+        let bombTimerCounter = 0;
+        let gameTime = 0;
+        let lastDwellTick = -1;
+
+        // Array zur Speicherung, welche Level bereits abgeschlossen wurden
+        let completedLevels = new Array(10).fill(false);
+
+        // Level 8 & Level 10 Pong Questionmark Balls array
+        let qBallsLevel8 = [];
+        let qBallsLevel10 = [];
+
+        const overlay = document.getElementById('overlay');
+        const overlayIcon = document.getElementById('overlay-icon');
+        const overlayTitle = document.getElementById('overlay-title');
+        const overlaySubtitle = document.getElementById('overlay-subtitle');
+        const startActionBtn = document.getElementById('start-action-btn');
+        const levelDisplay = document.getElementById('level-display');
+        const deathsDisplay = document.getElementById('deaths-display');
+        const statusText = document.getElementById('status-text');
+        const statusIcon = document.getElementById('status-icon');
+        const musicBtn = document.getElementById('music-btn');
+        const musicIcon = document.getElementById('music-icon');
+        const musicText = document.getElementById('music-text');
+        const soundBtn = document.getElementById('sound-btn');
+        const soundIcon = document.getElementById('sound-icon');
+        const levelButtonsContainer = document.getElementById('level-buttons-container');
+
+        const levels = [
+            // Level 1: Die Schicksalstore
+            {
+                name: "1. Schicksalstore",
+                description: "Halte den Cursor 2 Sekunden in der START-BASIS. Nutze die Lücken der Tore für den Weg zum ZIEL!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                obstacles: [
+                    { type: 'horizontal_gate', y: 160, height: 20, gapWidth: 95, minX: 25, maxX: 755, speed: 2.2, currentX: 100 },
+                    { type: 'horizontal_gate', y: 320, height: 20, gapWidth: 90, minX: 25, maxX: 755, speed: -2.8, currentX: 600 },
+                    { type: 'horizontal_gate', y: 440, height: 20, gapWidth: 85, minX: 25, maxX: 755, speed: 3.2, currentX: 250 }
+                ]
+            },
+            // Level 2: Laser-Matrix
+            {
+                name: "2. Laser-Taktung",
+                description: "Passiere die Wände im rhythmischen Takt, wenn der rote Laser kurz ausgeht!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                obstacles: [
+                    { type: 'laser_wall', y: 160, height: 16, interval: 140, activeDuration: 60, offset: 0 },
+                    { type: 'laser_wall', y: 280, height: 16, interval: 140, activeDuration: 60, offset: 45 },
+                    { type: 'laser_wall', y: 400, height: 16, interval: 140, activeDuration: 60, offset: 90 }
+                ]
+            },
+            // Level 3: Rotoren-Sperre
+            {
+                name: "3. Klingen-Rotor",
+                description: "Achte auf die rotierenden Laserflügel und umfahre sie mit geschmeidiger Bewegung!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                obstacles: [
+                    { type: 'rotor', cx: 260, cy: 300, length: 220, blades: 2, speed: 0.022 },
+                    { type: 'rotor', cx: 540, cy: 300, length: 220, blades: 2, speed: -0.025 },
+                    { type: 'static_rect', x: 18, y: 290, w: 200, h: 20 },
+                    { type: 'static_rect', x: 580, y: 290, w: 202, h: 20 }
+                ]
+            },
+            // Level 4: Bomben-Labyrinth (0.2s Spawn)
+            {
+                name: "4. Bomben-Inferno",
+                description: "Wände versperren den Weg. Alle 0,2 Sekunden spawnen explosive Bomben, die nach 2 Sekunden hochgehen!",
+                startZone: { x: 35, y: 35, w: 65, h: 65 },
+                goalZone: { x: 700, y: 490, w: 65, h: 65 },
+                isBombMaze: true,
+                obstacles: [
+                    { type: 'static_rect', x: 18, y: 140, w: 280, h: 20 },
+                    { type: 'static_rect', x: 400, y: 140, w: 382, h: 20 },
+                    { type: 'static_rect', x: 150, y: 280, w: 500, h: 20 },
+                    { type: 'static_rect', x: 18, y: 420, w: 300, h: 20 },
+                    { type: 'static_rect', x: 420, y: 420, w: 362, h: 20 }
+                ]
+            },
+            // Level 5: Kolben-Presse & 9 Schlangen
+            {
+                name: "5. Kolben-Presse",
+                description: "Präzises Timing gefordert: Die Kolben fahren extrem nah an den zentralen Laser heran!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                obstacles: [
+                    { type: 'piston', x: 240, yTop: 18, yBottom: 582, minGap: 45, maxGap: 180, speed: 0.04, offset: 0 },
+                    { type: 'laser_wall', y: 300, height: 16, interval: 110, activeDuration: 50, offset: 0 },
+                    { type: 'piston', x: 540, yTop: 18, yBottom: 582, minGap: 45, maxGap: 180, speed: 0.04, offset: Math.PI }
+                ]
+            },
+            // Level 6: Doppel-Rotor Slalom
+            {
+                name: "6. Doppel-Rotor Slalom",
+                description: "Zwei rotierende Flügel versperren den Weg. Finde die freie Schneise!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                obstacles: [
+                    { type: 'rotor', cx: 260, cy: 200, length: 210, blades: 3, speed: 0.028 },
+                    { type: 'rotor', cx: 540, cy: 400, length: 210, blades: 3, speed: -0.028 },
+                    { type: 'horizontal_gate', y: 300, height: 20, gapWidth: 80, minX: 25, maxX: 755, speed: 3.2, currentX: 300 }
+                ]
+            },
+            // Level 7: Pulsierende Wand
+            {
+                name: "7. Pulsierendes Labyrinth",
+                description: "Vier rhythmische Laserschranken. Wechsle mit Bedacht von Zone zu Zone!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                obstacles: [
+                    { type: 'laser_wall', y: 130, height: 16, interval: 150, activeDuration: 60, offset: 0 },
+                    { type: 'laser_wall', y: 230, height: 16, interval: 150, activeDuration: 60, offset: 35 },
+                    { type: 'laser_wall', y: 330, height: 16, interval: 150, activeDuration: 60, offset: 70 },
+                    { type: 'laser_wall', y: 430, height: 16, interval: 150, activeDuration: 60, offset: 105 }
+                ]
+            },
+            // Level 8: Pong Fragezeichen Labyrinth (14 Balls, No keys/doors)
+            {
+                name: "8. Pong-Fragezeichen Arena",
+                description: "14 blaue Fragezeichen-Bälle hüpfen wie Pong-Bälle durch das Labyrinth. Weiche ihnen aus!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                isLevel8: true,
+                obstacles: [
+                    { type: 'static_rect', x: 18, y: 130, w: 260, h: 22 },
+                    { type: 'static_rect', x: 520, y: 130, w: 262, h: 22 },
+                    { type: 'static_rect', x: 180, y: 260, w: 440, h: 22 },
+                    { type: 'static_rect', x: 18, y: 390, w: 260, h: 22 },
+                    { type: 'static_rect', x: 520, y: 390, w: 262, h: 22 }
+                ]
+            },
+            // Level 9: Die Guillotine (Max 3 Bombs simultaneously)
+            {
+                name: "9. Die Guillotine",
+                description: "Maximal 3 Bomben gleichzeitig sowie offene Kolben und ein Bewegungstor!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                isLevel9: true,
+                obstacles: [
+                    { type: 'piston', x: 240, yTop: 18, yBottom: 582, minGap: 52, maxGap: 230, speed: 0.038, offset: 0 },
+                    { type: 'horizontal_gate', y: 300, height: 20, gapWidth: 75, minX: 25, maxX: 755, speed: 3.8, currentX: 400 },
+                    { type: 'piston', x: 560, yTop: 18, yBottom: 582, minGap: 52, maxGap: 230, speed: 0.038, offset: Math.PI }
+                ]
+            },
+            // Level 10: Raketen-Invasion (5 Rockets, walls & 3 question marks)
+            {
+                name: "10. Raketen-Inferno",
+                description: "5 unberechenbare Raketen fliegen quer durch den Raum, begleitet von 3 Fragezeichen-Bällen und Lasern!",
+                startZone: { x: 35, y: 35, w: 75, h: 75 },
+                goalZone: { x: 690, y: 490, w: 75, h: 75 },
+                isLevel10: true,
+                obstacles: [
+                    { type: 'static_rect', x: 250, y: 150, w: 300, h: 20 },
+                    { type: 'static_rect', x: 150, y: 350, w: 500, h: 20 },
+                    { type: 'laser_wall', y: 250, height: 14, interval: 120, activeDuration: 50, offset: 0 }
+                ]
+            }
+        ];
+
+        function initLevel8Balls() {
+            qBallsLevel8 = [];
+            for (let i = 0; i < 14; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2.4 + Math.random() * 1.6;
+                qBallsLevel8.push({
+                    x: 100 + Math.random() * 600,
+                    y: 100 + Math.random() * 400,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 14
+                });
+            }
+        }
+
+        function initLevel10Elements() {
+            qBallsLevel10 = [];
+            for (let i = 0; i < 3; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2.8 + Math.random() * 1.2;
+                qBallsLevel10.push({
+                    x: 150 + Math.random() * 500,
+                    y: 150 + Math.random() * 300,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 15
+                });
+            }
+            // 5 Raketen initialisieren
+            window.rockets = [];
+            for (let r = 0; r < 5; r++) {
+                window.rockets.push({
+                    x: 50 + Math.random() * 700,
+                    y: 50 + Math.random() * 500,
+                    targetX: 40 + Math.random() * (V_WIDTH - 80),
+                    targetY: 40 + Math.random() * (V_HEIGHT - 80),
+                    speed: 3.5 + Math.random() * 2.0,
+                    radius: 16
+                });
+            }
+        }
+
+        function setNewRocketTarget(rocket) {
+            rocket.targetX = 40 + Math.random() * (V_WIDTH - 80);
+            rocket.targetY = 40 + Math.random() * (V_HEIGHT - 80);
+        }
+
+        function renderLevelButtons() {
+            levelButtonsContainer.innerHTML = '';
+            levels.forEach((lvl, idx) => {
+                const btn = document.createElement('button');
+                
+                let btnStyle = 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700';
+                if (idx === currentLevelIdx) {
+                    btnStyle = 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/50 font-black';
+                } else if (completedLevels[idx]) {
+                    btnStyle = 'bg-emerald-600/80 text-white border border-emerald-500/60 shadow-sm shadow-emerald-500/30';
+                }
+
+                btn.className = `w-full py-2 px-1 rounded-lg font-orbitron text-xs font-bold transition flex items-center justify-center ${btnStyle}`;
+                btn.textContent = `${idx + 1}`;
+                btn.title = lvl.name;
+                btn.onclick = () => {
+                    prepareLevel(idx);
+                };
+                levelButtonsContainer.appendChild(btn);
+            });
+        }
+
+        function checkBorderCollision(px, py, radius) {
+            return (
+                px - radius <= BORDER_THICKNESS ||
+                px + radius >= V_WIDTH - BORDER_THICKNESS ||
+                py - radius <= BORDER_THICKNESS ||
+                py + radius >= V_HEIGHT - BORDER_THICKNESS
+            );
+        }
+
+        function circleRectCollision(cx, cy, cr, rx, ry, rw, rh) {
+            const closestX = Math.max(rx, Math.min(cx, rx + rw));
+            const closestY = Math.max(ry, Math.min(cy, ry + rh));
+            const distX = cx - closestX;
+            const distY = cy - closestY;
+            return (distX * distX + distY * distY) < (cr * cr);
+        }
+
+        function circleLineCollision(cx, cy, cr, x1, y1, x2, y2, thickness = 8) {
+            const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+            if (l2 === 0) return false;
+            let t = ((cx - x1) * (x2 - x1) + (cy - y1) * (y2 - y1)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const projX = x1 + t * (x2 - x1);
+            const projY = y1 + t * (y2 - y1);
+            const distSq = (cx - projX) * (cx - projX) + (cy - projY) * (cy - projY);
+            return distSq < (cr + thickness / 2) * (cr + thickness / 2);
+        }
+
+        function spawnRandomBomb() {
+            const bx = 80 + Math.random() * (V_WIDTH - 160);
+            const by = 80 + Math.random() * (V_HEIGHT - 160);
+            
+            activeBombs.push({
+                x: bx,
+                y: by,
+                radius: 22,
+                timeLeft: 2.0
+            });
+            sounds.playBombSpawn();
+        }
+
+        function checkObstacleCollisions(px, py, radius) {
+            const lvl = levels[currentLevelIdx];
+
+            if (lvl.isBombMaze) {
+                for (let bomb of activeBombs) {
+                    const dist = Math.hypot(px - bomb.x, py - bomb.y);
+                    if (dist < radius + bomb.radius) {
+                        return true;
+                    }
+                }
+            }
+
+            // Level 8 Ball Kollisionen
+            if (lvl.isLevel8) {
+                for (let ball of qBallsLevel8) {
+                    if (Math.hypot(px - ball.x, py - ball.y) < radius + ball.radius) {
+                        return true;
+                    }
+                }
+            }
+
+            // Level 10 Ball & 5 Rockets Kollisionen
+            if (lvl.isLevel10) {
+                for (let ball of qBallsLevel10) {
+                    if (Math.hypot(px - ball.x, py - ball.y) < radius + ball.radius) {
+                        return true;
+                    }
+                }
+                if (window.rockets) {
+                    for (let rocket of window.rockets) {
+                        if (Math.hypot(px - rocket.x, py - rocket.y) < radius + rocket.radius) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            for (let obs of lvl.obstacles) {
+                if (obs.type === 'static_rect') {
+                    if (circleRectCollision(px, py, radius, obs.x, obs.y, obs.w, obs.h)) return true;
+                } 
+                else if (obs.type === 'horizontal_gate') {
+                    const leftWidth = obs.currentX - BORDER_THICKNESS;
+                    if (leftWidth > 0 && circleRectCollision(px, py, radius, BORDER_THICKNESS, obs.y, leftWidth, obs.height)) return true;
+                    
+                    const rightStartX = obs.currentX + obs.gapWidth;
+                    const rightWidth = (V_WIDTH - BORDER_THICKNESS) - rightStartX;
+                    if (rightWidth > 0 && circleRectCollision(px, py, radius, rightStartX, obs.y, rightWidth, obs.height)) return true;
+                }
+                else if (obs.type === 'laser_wall') {
+                    const cycle = (gameTime + obs.offset) % obs.interval;
+                    if (cycle < obs.activeDuration) {
+                        if (circleRectCollision(px, py, radius, BORDER_THICKNESS, obs.y, V_WIDTH - 2 * BORDER_THICKNESS, obs.height)) return true;
+                    }
+                }
+                else if (obs.type === 'rotor') {
+                    const angleStep = (Math.PI * 2) / obs.blades;
+                    const currentAngle = gameTime * obs.speed;
+                    for (let i = 0; i < obs.blades; i++) {
+                        const bAngle = currentAngle + i * angleStep;
+                        const x2 = obs.cx + Math.cos(bAngle) * obs.length;
+                        const y2 = obs.cy + Math.sin(bAngle) * obs.length;
+                        if (circleLineCollision(px, py, radius, obs.cx, obs.cy, x2, y2, 10)) return true;
+                    }
+                }
+                else if (obs.type === 'piston') {
+                    const phase = Math.sin(gameTime * obs.speed + obs.offset);
+                    const currentGap = obs.minGap + (obs.maxGap - obs.minGap) * (0.5 + 0.5 * phase);
+                    const halfGap = currentGap / 2;
+                    const midY = (obs.yTop + obs.yBottom) / 2;
+
+                    const topH = midY - halfGap - obs.yTop;
+                    if (topH > 0 && circleRectCollision(px, py, radius, obs.x - 30, obs.yTop, 60, topH)) return true;
+
+                    const botY = midY + halfGap;
+                    const botH = obs.yBottom - botY;
+                    if (botH > 0 && circleRectCollision(px, py, radius, obs.x - 30, botY, 60, botH)) return true;
+                }
+            }
+
+            return false;
+        }
+
+        function spawnExplosion(x, y, color = '#ef4444') {
+            for (let i = 0; i < 40; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1.5 + Math.random() * 6.5;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 2 + Math.random() * 4,
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.03,
+                    color: color
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= p.decay;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function updateGameLogic() {
+            gameTime += 1;
+
+            const lvl = levels[currentLevelIdx];
+            if (lvl && lvl.obstacles) {
+                lvl.obstacles.forEach(obs => {
+                    if (obs.type === 'horizontal_gate') {
+                        obs.currentX += obs.speed;
+                        if (obs.currentX <= obs.minX || obs.currentX >= obs.maxX) {
+                            obs.speed = -obs.speed;
+                        }
+                    }
+                });
+            }
+
+            // Level 8: Pong Fragezeichen Bälle Physik mit fehlerfreier Wandkollision (kein Festkleben)
+            if (lvl.isLevel8) {
+                qBallsLevel8.forEach(ball => {
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+
+                    if (ball.x - ball.radius <= BORDER_THICKNESS) {
+                        ball.x = BORDER_THICKNESS + ball.radius;
+                        ball.vx = -ball.vx;
+                    } else if (ball.x + ball.radius >= V_WIDTH - BORDER_THICKNESS) {
+                        ball.x = V_WIDTH - BORDER_THICKNESS - ball.radius;
+                        ball.vx = -ball.vx;
+                    }
+                    if (ball.y - ball.radius <= BORDER_THICKNESS) {
+                        ball.y = BORDER_THICKNESS + ball.radius;
+                        ball.vy = -ball.vy;
+                    } else if (ball.y + ball.radius >= V_HEIGHT - BORDER_THICKNESS) {
+                        ball.y = V_HEIGHT - BORDER_THICKNESS - ball.radius;
+                        ball.vy = -ball.vy;
+                    }
+
+                    if (lvl.obstacles) {
+                        lvl.obstacles.forEach(obs => {
+                            if (obs.type === 'static_rect') {
+                                if (ball.x + ball.radius > obs.x && ball.x - ball.radius < obs.x + obs.w &&
+                                    ball.y + ball.radius > obs.y && ball.y - ball.radius < obs.y + obs.h) {
+                                    
+                                    const overlapLeft = (ball.x + ball.radius) - obs.x;
+                                    const overlapRight = (obs.x + obs.w) - (ball.x - ball.radius);
+                                    const overlapTop = (ball.y + ball.radius) - obs.y;
+                                    const overlapBottom = (obs.y + obs.h) - (ball.y - ball.radius);
+
+                                    const minOverlapX = Math.min(overlapLeft, overlapRight);
+                                    const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+                                    if (minOverlapX < minOverlapY) {
+                                        if (overlapLeft < overlapRight) {
+                                            ball.x = obs.x - ball.radius - 1;
+                                        } else {
+                                            ball.x = obs.x + obs.w + ball.radius + 1;
+                                        }
+                                        ball.vx = -ball.vx;
+                                    } else {
+                                        if (overlapTop < overlapBottom) {
+                                            ball.y = obs.y - ball.radius - 1;
+                                        } else {
+                                            ball.y = obs.y + obs.h + ball.radius + 1;
+                                        }
+                                        ball.vy = -ball.vy;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Level 10: 3 Fragezeichen-Bälle und 5 Raketen-Bewegung
+            if (lvl.isLevel10) {
+                qBallsLevel10.forEach(ball => {
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+
+                    if (ball.x - ball.radius <= BORDER_THICKNESS || ball.x + ball.radius >= V_WIDTH - BORDER_THICKNESS) {
+                        ball.vx = -ball.vx;
+                        ball.x = Math.max(BORDER_THICKNESS + ball.radius, Math.min(V_WIDTH - BORDER_THICKNESS - ball.radius, ball.x));
+                    }
+                    if (ball.y - ball.radius <= BORDER_THICKNESS || ball.y + ball.radius >= V_HEIGHT - BORDER_THICKNESS) {
+                        ball.vy = -ball.vy;
+                        ball.y = Math.max(BORDER_THICKNESS + ball.radius, Math.min(V_HEIGHT - BORDER_THICKNESS - ball.radius, ball.y));
+                    }
+
+                    if (lvl.obstacles) {
+                        lvl.obstacles.forEach(obs => {
+                            if (obs.type === 'static_rect') {
+                                if (ball.x + ball.radius > obs.x && ball.x - ball.radius < obs.x + obs.w &&
+                                    ball.y + ball.radius > obs.y && ball.y - ball.radius < obs.y + obs.h) {
+                                    ball.vx = -ball.vx;
+                                    ball.vy = -ball.vy;
+                                }
+                            }
+                        });
+                    }
+                });
+
+                if (window.rockets) {
+                    window.rockets.forEach(rocket => {
+                        const dx = rocket.targetX - rocket.x;
+                        const dy = rocket.targetY - rocket.y;
+                        const dist = Math.hypot(dx, dy);
+
+                        if (dist < 10) {
+                            setNewRocketTarget(rocket);
+                        } else {
+                            rocket.x += (dx / dist) * rocket.speed;
+                            rocket.y += (dy / dist) * rocket.speed;
+                        }
+                    });
+                }
+            }
+
+            // Bomben-Timer Logik für Level 4 (0.2 Sekunden Takt, max 3 in Level 9)
+            if ((lvl.isBombMaze || lvl.isLevel9) && player.state === 'ACTIVE') {
+                bombTimerCounter += 1 / 60;
+                const spawnInterval = 0.2;
+                const maxActive = lvl.isLevel9 ? 3 : 99;
+
+                if (bombTimerCounter >= spawnInterval && activeBombs.length < maxActive) {
+                    bombTimerCounter = 0;
+                    spawnRandomBomb();
+                }
+
+                for (let i = activeBombs.length - 1; i >= 0; i--) {
+                    let bomb = activeBombs[i];
+                    bomb.timeLeft -= 1 / 60;
+                    if (bomb.timeLeft <= 0) {
+                        sounds.playBombExplode();
+                        spawnExplosion(bomb.x, bomb.y, '#f97316');
+                        
+                        const distToPlayer = Math.hypot(player.x - bomb.x, player.y - bomb.y);
+                        if (distToPlayer < 65) {
+                            triggerDeath("Von Bombenexplosion erfasst!");
+                            return;
+                        }
+
+                        activeBombs.splice(i, 1);
+                    }
+                }
+            }
+
+            if (player.state === 'DWELLING') {
+                player.dwellTime += 1 / 60;
+                const currentSec = Math.floor(player.dwellTime);
+                if (currentSec > lastDwellTick && currentSec < player.dwellTarget) {
+                    lastDwellTick = currentSec;
+                    sounds.playTick();
+                }
+
+                if (player.dwellTime >= player.dwellTarget) {
+                    player.state = 'ACTIVE';
+                    sounds.playArmSound();
+                    statusIcon.className = 'fa-solid fa-shield-halved text-emerald-400 animate-pulse';
+                    statusText.textContent = 'SYSTEM SCHARFGESCHALTET • NAVIGIERE ZUM ZIEL!';
+                }
+            }
+        }
+
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = V_WIDTH / rect.width;
+            const scaleY = V_HEIGHT / rect.height;
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function handlePointerMove(e) {
+            const pos = getCanvasCoordinates(e);
+            player.x = pos.x;
+            player.y = pos.y;
+
+            if (player.state === 'OVERLAY') return;
+
+            const lvl = levels[currentLevelIdx];
+            const sz = lvl.startZone;
+            const inStartZone = circleRectCollision(player.x, player.y, player.radius, sz.x, sz.y, sz.w, sz.h);
+
+            if (checkBorderCollision(player.x, player.y, player.radius)) {
+                if (player.state === 'ACTIVE') {
+                    triggerDeath("Spielfeldbegrenzung berührt!");
+                    return;
+                }
+            }
+
+            if (player.state === 'WAITING_FOR_START' || player.state === 'DWELLING') {
+                if (inStartZone) {
+                    player.state = 'DWELLING';
+                    statusIcon.className = 'fa-solid fa-stopwatch text-amber-400 animate-spin';
+                    const remaining = Math.ceil(player.dwellTarget - player.dwellTime);
+                    statusText.textContent = `Aktivierung in ${remaining}s... Position halten!`;
+                } else {
+                    player.state = 'WAITING_FOR_START';
+                    player.dwellTime = 0;
+                    lastDwellTick = -1;
+                    statusIcon.className = 'fa-solid fa-hand-pointer text-cyan-400';
+                    statusText.textContent = "Fahre in die grüne START-BASIS!";
+                }
+            } else if (player.state === 'ACTIVE') {
+                if (checkObstacleCollisions(player.x, player.y, player.radius)) {
+                    triggerDeath("Hindernis berührt!");
+                    return;
+                }
+
+                const gz = lvl.goalZone;
+                if (circleRectCollision(player.x, player.y, player.radius, gz.x, gz.y, gz.w, gz.h)) {
+                    triggerLevelComplete();
+                }
+            }
+        }
+
+        function triggerDeath(reason = "Kollision!") {
+            if (player.state !== 'ACTIVE') return;
+            player.state = 'OVERLAY';
+            deaths++;
+            deathsDisplay.textContent = deaths;
+            sounds.playDeath();
+            spawnExplosion(player.x, player.y, '#ef4444');
+
+            showOverlay(
+                '<i class="fa-solid fa-skull-crossbones"></i>',
+                'INFILTRATION FEHLGESCHLAGEN',
+                `${reason} Versuche es erneut!`,
+                'ERNEUT VERSUCHEN',
+                'red'
+            );
+        }
+
+        function triggerLevelComplete() {
+            player.state = 'OVERLAY';
+            completedLevels[currentLevelIdx] = true;
+            renderLevelButtons();
+
+            sounds.playWin();
+            spawnExplosion(player.x, player.y, '#10b981');
+
+            if (currentLevelIdx < levels.length - 1) {
+                showOverlay(
+                    '<i class="fa-solid fa-trophy"></i>',
+                    'LEVEL MEISTERHAFT CLEARED!',
+                    `Hervorragend! Level ${currentLevelIdx + 1} erfolgreich gemeistert.`,
+                    'NÄCHSTES LEVEL',
+                    'green'
+                );
+            } else {
+                const passcodeText = "GC9X#4L-8921!X7-Z26";
+                showOverlay(
+                    '<i class="fa-solid fa-crown"></i>',
+                    'GEOCACHE FREIGESCHALTET!',
+                    `HERZLICHEN GLÜCKWUNSCH! Du hast alle Level mit ${deaths} Toden absolviert!<br><br><div class="flex items-center justify-center gap-2 mt-2"><span id="passcode-box" class="font-mono text-cyan-300 font-bold bg-slate-900 px-4 py-2 rounded-lg border border-cyan-500/50 inline-block">${passcodeText}</span><button id="copy-btn" onclick="copyPasscode()" class="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition"><i class="fa-solid fa-copy"></i> Kopieren</button></div>`,
+                    'NEUSTART',
+                    'gold'
+                );
+            }
+        }
+
+        window.copyPasscode = function() {
+            const code = "GC9X#4L-8921!X7-Z26";
+            const textArea = document.createElement("textarea");
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const copyBtn = document.getElementById('copy-btn');
+                if (copyBtn) {
+                    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Kopiert!';
+                    copyBtn.className = 'px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold transition';
+                }
+            } catch (err) {}
+            document.body.removeChild(textArea);
+        };
+
+        function showOverlay(iconHtml, title, subtitle, btnText, type = 'cyan') {
+            overlayIcon.innerHTML = iconHtml;
+            overlayTitle.textContent = title;
+            overlaySubtitle.innerHTML = subtitle;
+            startActionBtn.textContent = btnText;
+
+            if (type === 'red') {
+                overlayIcon.className = 'text-5xl text-red-500 mb-3 animate-bounce';
+                startActionBtn.className = 'px-8 py-3.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 font-orbitron font-extrabold text-white rounded-xl shadow-lg glow-red transition transform hover:scale-105';
+            } else if (type === 'green') {
+                overlayIcon.className = 'text-5xl text-emerald-400 mb-3 animate-bounce';
+                startActionBtn.className = 'px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 font-orbitron font-extrabold text-white rounded-xl shadow-lg glow-cyan transition transform hover:scale-105';
+            } else if (type === 'gold') {
+                overlayIcon.className = 'text-5xl text-amber-400 mb-3 animate-bounce';
+                startActionBtn.className = 'px-8 py-3.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 font-orbitron font-extrabold text-slate-950 rounded-xl shadow-lg glow-gold transition transform hover:scale-105';
+            } else {
+                overlayIcon.className = 'text-5xl text-cyan-400 mb-3 animate-bounce';
+                startActionBtn.className = 'px-8 py-3.5 bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-orbitron font-extrabold text-white rounded-xl shadow-lg glow-cyan transition transform hover:scale-105';
+            }
+
+            overlay.classList.remove('pointer-events-none', 'opacity-0');
+            overlay.classList.add('opacity-100');
+        }
+
+        function hideOverlay() {
+            overlay.classList.add('pointer-events-none', 'opacity-0');
+            overlay.classList.remove('opacity-100');
+        }
+
+        function prepareLevel(idx) {
+            currentLevelIdx = idx;
+            const lvl = levels[currentLevelIdx];
+            player.state = 'OVERLAY';
+            player.dwellTime = 0;
+            activeBombs = [];
+            bombTimerCounter = 0;
+
+            if (lvl.isLevel8) {
+                initLevel8Balls();
+            }
+
+            if (lvl.isLevel10) {
+                initLevel10Elements();
+            }
+
+            player.x = lvl.startZone.x + lvl.startZone.w / 2;
+            player.y = lvl.startZone.y + lvl.startZone.h / 2;
+
+            levelDisplay.textContent = `${currentLevelIdx + 1} / ${levels.length}`;
+            renderLevelButtons();
+
+            showOverlay(
+                '<i class="fa-solid fa-crosshairs"></i>',
+                lvl.name.toUpperCase(),
+                `${lvl.description}`,
+                'LEVEL STARTEN'
+            );
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            const lvl = levels[currentLevelIdx];
+
+            // 1. Draw Start Zone
+            const sz = lvl.startZone;
+            ctx.save();
+            ctx.fillStyle = player.state === 'DWELLING' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+            ctx.strokeStyle = player.state === 'DWELLING' ? '#f59e0b' : '#10b981';
+            ctx.lineWidth = 2;
+            ctx.fillRect(sz.x, sz.y, sz.w, sz.h);
+            ctx.strokeRect(sz.x, sz.y, sz.w, sz.h);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px Orbitron';
+            ctx.textAlign = 'center';
+            ctx.fillText('START', sz.x + sz.w / 2, sz.y + sz.h / 2 - 3);
+
+            if (player.state === 'DWELLING') {
+                const progress = player.dwellTime / player.dwellTarget;
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(sz.x + sz.w / 2, sz.y + sz.h / 2 + 8, 10, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 2. Draw Goal Zone
+            const gz = lvl.goalZone;
+            ctx.save();
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.3)';
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 2;
+            ctx.fillRect(gz.x, gz.y, gz.w, gz.h);
+            ctx.strokeRect(gz.x, gz.y, gz.w, gz.h);
+
+            ctx.fillStyle = '#06b6d4';
+            ctx.font = 'bold 9px Orbitron';
+            ctx.textAlign = 'center';
+            ctx.fillText('ZIEL', gz.x + gz.w / 2, gz.y + gz.h / 2 + 3);
+            ctx.restore();
+
+            // 3. Draw Active Bombs
+            if (lvl.isBombMaze || lvl.isLevel9) {
+                activeBombs.forEach(bomb => {
+                    ctx.save();
+                    const pulse = Math.sin(bomb.timeLeft * 15) * 3;
+                    
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+                    ctx.beginPath();
+                    ctx.arc(bomb.x, bomb.y, bomb.radius + 15, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(bomb.x, bomb.y, bomb.radius + pulse, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#f87171';
+                    ctx.font = 'bold 11px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`${bomb.timeLeft.toFixed(1)}s`, bomb.x, bomb.y);
+                    ctx.restore();
+                });
+            }
+
+            // 4. Draw Level 8 Questionmark Balls
+            if (lvl.isLevel8) {
+                qBallsLevel8.forEach(ball => {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.radius + 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#93c5fd';
+                    ctx.font = 'bold 14px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('?', ball.x, ball.y);
+                    ctx.restore();
+                });
+            }
+
+            // 5. Draw Level 10 Elements (Questionmark balls & 5 Rockets)
+            if (lvl.isLevel10) {
+                qBallsLevel10.forEach(ball => {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.radius + 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#93c5fd';
+                    ctx.font = 'bold 14px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('?', ball.x, ball.y);
+                    ctx.restore();
+                });
+
+                if (window.rockets) {
+                    window.rockets.forEach(rocket => {
+                        ctx.save();
+                        ctx.translate(rocket.x, rocket.y);
+                        const angle = Math.atan2(rocket.targetY - rocket.y, rocket.targetX - rocket.x);
+                        ctx.rotate(angle);
+
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, rocket.radius + 8, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#ef4444';
+                        ctx.strokeStyle = '#f87171';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(18, 0);
+                        ctx.lineTo(-12, -10);
+                        ctx.lineTo(-8, 0);
+                        ctx.lineTo(-12, 10);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.restore();
+                    });
+                }
+            }
+
+            // 6. Draw Obstacles
+            if (lvl.obstacles) {
+                lvl.obstacles.forEach(obs => {
+                    if (obs.type === 'static_rect') {
+                        ctx.fillStyle = '#475569';
+                        ctx.strokeStyle = '#94a3b8';
+                        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                    } 
+                    else if (obs.type === 'horizontal_gate') {
+                        ctx.fillStyle = '#334155';
+                        ctx.strokeStyle = '#f97316';
+                        ctx.lineWidth = 2;
+
+                        const leftWidth = obs.currentX - BORDER_THICKNESS;
+                        if (leftWidth > 0) {
+                            ctx.fillRect(BORDER_THICKNESS, obs.y, leftWidth, obs.height);
+                            ctx.strokeRect(BORDER_THICKNESS, obs.y, leftWidth, obs.height);
+                        }
+
+                        const rightStartX = obs.currentX + obs.gapWidth;
+                        const rightWidth = (V_WIDTH - BORDER_THICKNESS) - rightStartX;
+                        if (rightWidth > 0) {
+                            ctx.fillRect(rightStartX, obs.y, rightWidth, obs.height);
+                            ctx.strokeRect(rightStartX, obs.y, rightWidth, obs.height);
+                        }
+
+                        ctx.fillStyle = '#f97316';
+                        ctx.fillRect(obs.currentX - 4, obs.y, 4, obs.height);
+                        ctx.fillRect(rightStartX, obs.y, 4, obs.height);
+                    } 
+                    else if (obs.type === 'laser_wall') {
+                        const cycle = (gameTime + obs.offset) % obs.interval;
+                        const isActive = cycle < obs.activeDuration;
+
+                        if (isActive) {
+                            ctx.save();
+                            ctx.shadowColor = '#ef4444';
+                            ctx.shadowBlur = 16;
+                            ctx.fillStyle = '#ef4444';
+                            ctx.fillRect(BORDER_THICKNESS, obs.y, V_WIDTH - 2 * BORDER_THICKNESS, obs.height);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(BORDER_THICKNESS, obs.y + obs.height / 3, V_WIDTH - 2 * BORDER_THICKNESS, obs.height / 3);
+                            ctx.restore();
+                        } else {
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
+                            ctx.fillRect(BORDER_THICKNESS, obs.y, V_WIDTH - 2 * BORDER_THICKNESS, obs.height);
+
+                            ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
+                            ctx.lineWidth = 1.5;
+                            ctx.setLineDash([8, 6]);
+                            ctx.strokeRect(BORDER_THICKNESS, obs.y, V_WIDTH - 2 * BORDER_THICKNESS, obs.height);
+
+                            ctx.strokeStyle = 'rgba(252, 165, 165, 0.85)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([12, 6]);
+                            ctx.beginPath();
+                            ctx.moveTo(BORDER_THICKNESS, obs.y + obs.height / 2);
+                            ctx.lineTo(V_WIDTH - BORDER_THICKNESS, obs.y + obs.height / 2);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            ctx.restore();
+                        }
+                    }
+                    else if (obs.type === 'rotor') {
+                        ctx.save();
+                        const angleStep = (Math.PI * 2) / obs.blades;
+                        const currentAngle = gameTime * obs.speed;
+
+                        ctx.fillStyle = '#0f172a';
+                        ctx.strokeStyle = '#06b6d4';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.arc(obs.cx, obs.cy, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#38bdf8';
+                        ctx.lineWidth = 8;
+                        for (let i = 0; i < obs.blades; i++) {
+                            const bAngle = currentAngle + i * angleStep;
+                            const x2 = obs.cx + Math.cos(bAngle) * obs.length;
+                            const y2 = obs.cy + Math.sin(bAngle) * obs.length;
+                            ctx.beginPath();
+                            ctx.moveTo(obs.cx, obs.cy);
+                            ctx.lineTo(x2, y2);
+                            ctx.stroke();
+                        }
+                        ctx.restore();
+                    }
+                    else if (obs.type === 'piston') {
+                        const phase = Math.sin(gameTime * obs.speed + obs.offset);
+                        const currentGap = obs.minGap + (obs.maxGap - obs.minGap) * (0.5 + 0.5 * phase);
+                        const halfGap = currentGap / 2;
+                        const midY = (obs.yTop + obs.yBottom) / 2;
+
+                        ctx.fillStyle = '#1e293b';
+                        ctx.strokeStyle = '#e2e8f0';
+                        ctx.lineWidth = 2;
+
+                        const topH = midY - halfGap - obs.yTop;
+                        if (topH > 0) {
+                            ctx.fillRect(obs.x - 30, obs.yTop, 60, topH);
+                            ctx.strokeRect(obs.x - 30, obs.yTop, 60, topH);
+                        }
+
+                        const botY = midY + halfGap;
+                        const botH = obs.yBottom - botY;
+                        if (botH > 0) {
+                            ctx.fillRect(obs.x - 30, botY, 60, botH);
+                            ctx.strokeRect(obs.x - 30, botY, 60, botH);
+                        }
+                    }
+                });
+            }
+
+            // 7. Draw Deadly Outer Border Laser Frame
+            ctx.save();
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 18;
+            ctx.fillStyle = '#dc2626';
+
+            ctx.fillRect(0, 0, V_WIDTH, BORDER_THICKNESS);
+            ctx.fillRect(0, V_HEIGHT - BORDER_THICKNESS, V_WIDTH, BORDER_THICKNESS);
+            ctx.fillRect(0, 0, BORDER_THICKNESS, V_HEIGHT);
+            ctx.fillRect(V_WIDTH - BORDER_THICKNESS, 0, BORDER_THICKNESS, V_HEIGHT);
+
+            ctx.strokeStyle = '#fee2e2';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(BORDER_THICKNESS, BORDER_THICKNESS, V_WIDTH - 2 * BORDER_THICKNESS, V_HEIGHT - 2 * BORDER_THICKNESS);
+            ctx.restore();
+
+            // 8. Draw Particles
+            drawParticles();
+
+            // 9. Draw Player Cursor Dot
+            if (player.state !== 'OVERLAY') {
+                ctx.save();
+                ctx.shadowColor = player.state === 'ACTIVE' ? '#10b981' : (player.state === 'DWELLING' ? '#f59e0b' : '#06b6d4');
+                ctx.shadowBlur = 14;
+                ctx.fillStyle = player.state === 'ACTIVE' ? '#10b981' : (player.state === 'DWELLING' ? '#f59e0b' : '#06b6d4');
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function gameLoop() {
+            updateGameLogic();
+            updateParticles();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            startActionBtn.onclick = function() {
+                sounds.init();
+                sounds.startMusic();
+                if (startActionBtn.textContent.includes('NEUSTART') || startActionBtn.textContent.includes('ERNEUT')) {
+                    if (currentLevelIdx >= levels.length - 1 && overlayTitle.textContent.includes('GEOCACHE')) {
+                        currentLevelIdx = 0;
+                        completedLevels.fill(false);
+                    }
+                    prepareLevel(currentLevelIdx);
+                } else if (startActionBtn.textContent.includes('NÄCHSTES')) {
+                    prepareLevel(currentLevelIdx + 1);
+                }
+                hideOverlay();
+                player.state = 'WAITING_FOR_START';
+                statusIcon.className = 'fa-solid fa-hand-pointer text-cyan-400';
+                statusText.textContent = 'Fahre in die grüne START-BASIS!';
+            };
+
+            // Cheat Taste '9' schließt alle Level ab
+            window.addEventListener('keydown', function(e) {
+                if (e.key === '9') {
+                    sounds.init();
+                    sounds.playWin();
+                    completedLevels.fill(true);
+                    currentLevelIdx = levels.length - 1;
+                    triggerLevelComplete();
+                }
+            });
+
+            const restartBtn = document.getElementById('restart-btn');
+            if (restartBtn) {
+                restartBtn.onclick = function() {
+                    sounds.init();
+                    prepareLevel(currentLevelIdx);
+                };
+            }
+
+            musicBtn.onclick = function() {
+                sounds.init();
+                sounds.musicMuted = !sounds.musicMuted;
+                if (sounds.musicMuted) {
+                    musicIcon.className = 'fa-solid fa-volume-xmark';
+                    musicText.textContent = 'Musik AUS';
+                } else {
+                    musicIcon.className = 'fa-solid fa-music';
+                    musicText.textContent = 'Musik AN';
+                    sounds.startMusic();
+                }
+            };
+
+            soundBtn.onclick = function() {
+                sounds.init();
+                sounds.sfxMuted = !sounds.sfxMuted;
+                if (sounds.sfxMuted) {
+                    soundIcon.className = 'fa-solid fa-volume-xmark text-red-400';
+                } else {
+                    soundIcon.className = 'fa-solid fa-volume-high text-slate-300';
+                }
+            };
+
+            canvas.addEventListener('pointermove', handlePointerMove);
+            canvas.addEventListener('mousemove', handlePointerMove);
+            canvas.addEventListener('touchmove', handlePointerMove, { passive: true });
+
+            window.addEventListener('mouseleave', () => {
+                if (player.state === 'ACTIVE') {
+                    triggerDeath("Spielfeld verlassen!");
+                }
+            });
+
+            renderLevelButtons();
+            prepareLevel(0);
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
