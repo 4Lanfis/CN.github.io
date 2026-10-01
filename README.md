@@ -1,1 +1,1 @@
-Cursor Navigator Build 2.94
+Cursor Navigator Build 9.0 Bugs fixed
